@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ипподром - Учет лошадей</title>
+    <style>
+        :root {
+            --primary: #8B4513;
+            --secondary: #D2B48C;
+            --light: #F5F5DC;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .upload-section {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        .file-input {
+            display: none;
+        }
+        .upload-btn, .process-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        .upload-btn:hover, .process-btn:hover {
+            background: #A0522D;
+        }
+        .process-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .image-container {
+            display: flex;
+            padding: 20px;
+            gap: 30px;
+        }
+        .image-box {
+            flex: 1;
+            text-align: center;
+        }
+        .image-preview {
+            max-width: 100%;
+            max-height: 400px;
+            border: 2px dashed var(--secondary);
+            border-radius: 8px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Система учета лошадей ипподрома</h1>
+        </header>
+        
+        <div class="upload-section">
+            <input type="file" id="horseImage" class="file-input" accept="image/*">
+            <button class="upload-btn" onclick="document.getElementById('horseImage').click()">
+                Загрузить фото лошади
+            </button>
+            
+            <button id="processBtn" class="process-btn" disabled>
+                Анализировать данные
+            </button>
+            
+            <div id="status" style="margin-top: 15px; font-weight: bold;"></div>
+        </div>
+        
+        <div class="image-container">
+            <div class="image-box">
+                <h3>Фото лошади</h3>
+                <img id="originalImage" class="image-preview" style="display: none;">
+                <p id="noImageText">Изображение не загружено</p>
+            </div>
+            
+            <div class="image-box">
+                <h3>Результаты анализа</h3>
+                <img id="processedImage" class="image-preview" style="display: none;">
+                <p id="noResultText">Результаты анализа появятся здесь</p>
+                <div id="stats"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Обработка загрузки изображения
+        document.getElementById('horseImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.getElementById('originalImage');
+                    img.src = event.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('noImageText').style.display = 'none';
+                    document.getElementById('processBtn').disabled = false;
+                    document.getElementById('status').textContent = '';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Обработка кнопки анализа
+        document.getElementById('processBtn').addEventListener('click', async function() {
+            const status = document.getElementById('status');
+            const file = document.getElementById('horseImage').files[0];
+            
+            if (!file) {
+                alert('Сначала загрузите изображение!');
+                return;
+            }
+
+            status.textContent = "Анализ данных...";
+            this.disabled = true;
+            
+            try {
+                // Получаем все необходимые элементы DOM
+                const processedImg = document.getElementById('processedImage');
+                const noResultText = document.getElementById('noResultText');
+                const statsElement = document.getElementById('stats');
+                
+                const formData = new FormData();
+                formData.append('image', file);
+                
+                const response = await fetch('http://127.0.0.1:5000/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Ошибка сервера');
+                const data = await response.json();
+                
+                // Отображаем результат от сервера
+                processedImg.src = `data:image/jpeg;base64,${data.processed_image}`;
+                statsElement.textContent = `Обнаружено объектов: ${data.count}`;
+                
+                
+                // Обновляем интерфейс
+                processedImg.style.display = 'block';
+                noResultText.style.display = 'none';
+                status.textContent = "Анализ завершен!";
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                status.textContent = "Ошибка при анализе данных: " + error.message;
+            } finally {
+                this.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
